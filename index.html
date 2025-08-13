@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NC AI Solve-A-Thon Interactive Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+        .step-indicator.active {
+            background-color: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        .step-indicator.completed {
+            background-color: #16a34a;
+            color: white;
+            border-color: #16a34a;
+        }
+        .chat-bubble-user {
+            background-color: #dbeafe;
+            align-self: flex-end;
+        }
+        .chat-bubble-ai {
+            background-color: #e5e7eb;
+            align-self: flex-start;
+        }
+        .chat-bubble-ai ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+        .chat-bubble-ai li {
+            margin-bottom: 4px;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .persona-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .persona-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .persona-card.interviewed {
+            opacity: 0.6;
+            border-style: dashed;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <p class="text-xs text-gray-500 mb-2">Created by Vera Cubero (NCDPI) with Gemini 2.5 Pro</p>
+            <img src="https://storage.googleapis.com/gemini-prod/images/56752765-1d4b-4613-8991-884d2932029a" alt="NC AI Solve-A-Thon 2025-26 Logo" class="mx-auto mb-4 w-64 h-auto">
+            <h1 class="text-3xl sm:text-4xl font-bold text-blue-800">Interactive Project Guide</h1>
+            <p class="mt-2 text-lg text-gray-600">Your step-by-step assistant for the NC AI Solve-A-Thon</p>
+        </header>
+
+        <!-- Step Indicators -->
+        <div id="step-indicators" class="flex flex-wrap items-center justify-center gap-2 sm:gap-4 mb-8"></div>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg min-h-[500px]">
+            <!-- Content for each step will be injected here -->
+        </main>
+
+        <!-- Navigation Buttons -->
+        <div class="mt-8 flex justify-between items-center">
+            <button id="prev-btn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-arrow-left mr-2"></i> Back
+            </button>
+            <button id="next-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300">
+                Next <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Final Document Modal -->
+    <div id="final-doc-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-blue-800">Your Solve-A-Thon Project Plan</h2>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+            <div id="final-doc-content" class="p-8 overflow-y-auto">
+                <!-- Final document content will be injected here -->
+            </div>
+            <div class="p-6 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex flex-wrap gap-4 justify-end">
+                <button id="copy-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-copy mr-2"></i> Copy to Clipboard
+                </button>
+                <button id="print-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    <i class="fas fa-print mr-2"></i> Print / Save as PDF
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const appState = {
+            currentStep: 0,
+            projectData: {
+                agreedToTerms: false,
+                location: '',
+                communityIssues: '',
+                refinedIssues: [],
+                selectedIssue: '',
+                empathize: { 
+                    personas: [],
+                    interviews: {},
+                    currentInterviewTarget: null,
+                    completedInterviews: [],
+                    notes: '' 
+                },
+                define: { chat: [], notes: '' },
+                ideate: { chat: [], notes: '' },
+                prototype: { chat: [], notes: '' },
+                test: { chat: [], notes: '' },
+            },
+        };
+
+        const steps = [
+            { name: "Responsible AI", icon: "fa-shield-alt" },
+            { name: "Brainstorm", icon: "fa-lightbulb" },
+            { name: "Select Problem", icon: "fa-bullseye" },
+            { name: "Empathize", icon: "fa-users" },
+            { name: "Define", icon: "fa-pen-to-square" },
+            { name: "Ideate", icon: "fa-wand-magic-sparkles" },
+            { name: "Prototype", icon: "fa-cubes" },
+            { name: "Test & Iterate", icon: "fa-vials" },
+            { name: "Finish", icon: "fa-flag-checkered" },
+        ];
+
+        const mainContent = document.getElementById('main-content');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const stepIndicatorsContainer = document.getElementById('step-indicators');
+        const finalDocModal = document.getElementById('final-doc-modal');
+
+        // --- FORMATTING HELPER ---
+        function formatAIResponseToHTML(text) {
+            if (!text) return '';
+            let safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            safeText = safeText
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            const lines = safeText.split('\n');
+            let html = '';
+            let inList = false;
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine.startsWith('* ')) {
+                    const content = trimmedLine.substring(2);
+                    if (!inList) {
+                        html += '<ul>';
+                        inList = true;
+                    }
+                    html += `<li>${content}</li>`;
+                } else {
+                    if (inList) {
+                        html += '</ul>';
+                        inList = false;
+                    }
+                    if (line) {
+                        html += line + '<br>';
+                    }
+                }
+            }
+            if (inList) {
+                html += '</ul>';
+            }
+            if (html.endsWith('<br>')) {
+                html = html.slice(0, -4);
+            }
+            return html;
+        }
+
+        // --- RENDER FUNCTIONS ---
+
+        function renderStepIndicators() {
+            stepIndicatorsContainer.innerHTML = '';
+            steps.forEach((step, index) => {
+                const indicator = document.createElement('div');
+                indicator.className = 'step-indicator flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 border-2 border-gray-300 rounded-full text-gray-500 font-bold text-lg cursor-pointer';
+                if (index < appState.currentStep) {
+                    indicator.classList.add('completed');
+                    indicator.innerHTML = `<i class="fas fa-check"></i>`;
+                } else if (index === appState.currentStep) {
+                    indicator.classList.add('active');
+                    indicator.innerHTML = `<i class="fas ${step.icon}"></i>`;
+                } else {
+                    indicator.innerHTML = `<i class="fas ${step.icon}"></i>`;
+                }
+                
+                indicator.addEventListener('click', () => {
+                    if (index < appState.currentStep) {
+                        if (appState.currentStep === 3 && appState.projectData.empathize.completedInterviews.length < appState.projectData.empathize.personas.length) {
+                             return;
+                        }
+                        appState.currentStep = index;
+                        render();
+                    }
+                });
+                
+                stepIndicatorsContainer.appendChild(indicator);
+            });
+        }
+
+        function render() {
+            renderStepIndicators();
+            mainContent.innerHTML = '';
+            mainContent.classList.add('fade-in');
+            setTimeout(() => mainContent.classList.remove('fade-in'), 500);
+
+            switch (appState.currentStep) {
+                case 0: renderResponsibleAI(); break;
+                case 1: renderBrainstorm(); break;
+                case 2: renderSelectProblem(); break;
+                case 3: renderEmpathizeStep(); break;
+                case 4: renderDesignThinkingStep('define', 'Define the Problem', 'Clearly state the problem you are solving based on your research and empathy work.', ['Rewrite this sentence as a clear, focused problem statement: [insert draft].', 'Generate 3 different ways to frame this problem from a student perspective.']); break;
+                case 5: renderDesignThinkingStep('ideate', 'Ideate Solutions', 'Brainstorm lots of creative solutions. Think big and wild! No idea is too out there at this stage.', ['Give me 10 bold ideas students could try to solve [problem statement].', 'What are some low-cost ways to improve [issue] in schools or communities?']); break;
+                case 6: renderDesignThinkingStep('prototype', 'Prototype Your Idea', 'Build a simple, tangible version of your best idea. This could be a sketch, a wireframe, a role-play script, or a physical model.', ['Generate a simple webpage layout for a community recycling app.', 'Create a draft social media post to promote our solution to [issue].']); break;
+                case 7: renderDesignThinkingStep('test', 'Test & Iterate', 'Share your prototype with the people you designed it for. Get feedback and use it to improve your solution.', ['What questions should we ask during feedback sessions about our [prototype]?', 'Revise this pitch script to make it more persuasive for high school students.']); break;
+                case 8: renderFinish(); break;
+            }
+            updateNavButtons();
+        }
+
+        function renderResponsibleAI() {
+            mainContent.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-blue-800">Step 1: Using AI Responsibly</h2>
+                <div class="mb-6">
+                    <label for="location-input" class="block text-sm font-medium text-gray-700 mb-1">Your City, State</label>
+                    <input type="text" id="location-input" class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="e.g., Raleigh, NC" value="${appState.projectData.location}">
+                    <p class="text-xs text-gray-500 mt-1">Providing your location helps the AI personalize problem statements for your area.</p>
+                </div>
+                <p class="mb-6 text-gray-700">Before we begin, it's crucial to remember that AI is a powerful tool to augment your creativity and intelligence, not replace it. As you work on your project, keep these North Carolina AI Guidelines in mind.</p>
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-3 text-blue-900">The EVERY Framework</h3>
+                    <ul class="space-y-3 list-inside">
+                        <li><strong class="font-semibold text-blue-700">E - Evaluate:</strong> Always assess the AI's output. Does it meet your needs? Is it relevant and high-quality?</li>
+                        <li><strong class="font-semibold text-blue-700">V - Verify:</strong> Fact-check any data, quotes, or claims. AI can "hallucinate" or make things up. Use reliable sources to confirm information.</li>
+                        <li><strong class="font-semibold text-blue-700">E - Engage:</strong> Don't just accept the first answer. Have a conversation with the AI. Provide feedback and ask for revisions to improve the output.</li>
+                        <li><strong class="font-semibold text-blue-700">R - Revise:</strong> Make the final product your own. Edit the AI's suggestions to reflect your unique voice, style, and ideas.</li>
+                        <li><strong class="font-semibold text-blue-700">Y - You are Responsible:</strong> Ultimately, you are accountable for the work you submit. Be transparent about your use of AI tools.</li>
+                    </ul>
+                </div>
+                 <div class="mt-8 flex items-center">
+                    <input type="checkbox" id="responsible-ai-checkbox" class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <label for="responsible-ai-checkbox" class="ml-3 block text-sm text-gray-700">
+                        I will use AI responsibly as a collaborator, but with human evaluation and oversight and I will disclose all use of AI in my project.
+                    </label>
+                </div>
+            `;
+
+            const checkbox = document.getElementById('responsible-ai-checkbox');
+            checkbox.checked = appState.projectData.agreedToTerms;
+            checkbox.addEventListener('change', (e) => {
+                appState.projectData.agreedToTerms = e.target.checked;
+                updateNavButtons();
+            });
+
+            const locationInput = document.getElementById('location-input');
+            locationInput.addEventListener('input', (e) => {
+                appState.projectData.location = e.target.value;
+            });
+        }
+
+        function renderBrainstorm() {
+            mainContent.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-blue-800">Step 2: Brainstorm Community Issues</h2>
+                <p class="mb-6 text-gray-700">What problems in your school or community do you care about? Think about challenges related to health, the environment, education, safety, or social well-being. Don't worry about solutions yet—just list the issues.</p>
+                <textarea id="community-issues" class="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Examples: Lack of recycling options at school, mental health support for teens, food deserts in our town, unsafe intersections for pedestrians, digital literacy for senior citizens...">${appState.projectData.communityIssues}</textarea>
+            `;
+            document.getElementById('community-issues').addEventListener('input', (e) => {
+                appState.projectData.communityIssues = e.target.value;
+            });
+        }
+
+        function safeParseJsonArray(str) {
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                const match = str.match(/\[.*\]/s);
+                if (match) {
+                    try {
+                        return JSON.parse(match[0]);
+                    } catch (e2) {
+                        console.error("Failed to parse extracted JSON array:", e2);
+                        return null;
+                    }
+                }
+                console.error("Failed to parse JSON and no array found:", e);
+                return null;
+            }
+        }
+
+        async function renderSelectProblem() {
+            mainContent.innerHTML = `
+                <h2 class="text-2xl font-bold mb-4 text-blue-800">Step 3: Refine & Select a Problem</h2>
+                <p class="mb-6 text-gray-700">Let's refine your brainstormed ideas into clear problem statements. A good problem statement focuses on the issue and its impact, not the solution. Select ONE problem to focus on for the rest of this guide.</p>
+                <div id="problem-list" class="space-y-4">
+                    <div class="flex items-center justify-center h-32">
+                        <div class="loader"></div>
+                        <p class="ml-4 text-gray-600">AI is refining your ideas for ${appState.projectData.location || 'your area'}...</p>
+                    </div>
+                </div>
+            `;
+
+            if (appState.projectData.refinedIssues.length === 0 && appState.projectData.communityIssues) {
+                const userIssues = appState.projectData.communityIssues;
+                const location = appState.projectData.location;
+                const prompt = `Based on the following community issues listed by a student team: "${userIssues}", and considering the location of "${location}", reframe them as clear, impactful problem statements. A problem statement should describe the issue, who it affects, and why it matters. Do not suggest solutions. Also, add three additional, diverse problem statements relevant to "${location}" based on themes of community safety, health/wellness, and environmental sustainability. Present the final list as a JSON array of strings. Example format: ["Many students in [City] lack access to healthy food options, leading to poor nutrition...", "Local elderly residents in [City] struggle with new technologies..."]. IMPORTANT: Your entire response must be ONLY the JSON array.`;
+                
+                try {
+                    const refinedText = await callGemini(prompt);
+                    const parsedIssues = safeParseJsonArray(refinedText);
+
+                    if (parsedIssues && Array.isArray(parsedIssues)) {
+                        appState.projectData.refinedIssues = parsedIssues;
+                    } else {
+                        throw new Error("Failed to parse AI response into a valid array.");
+                    }
+                } catch (error) {
+                    console.error("Error refining issues:", error);
+                    appState.projectData.refinedIssues = ["Error generating ideas. Please check your input and try again."];
+                }
+            } else if (appState.projectData.refinedIssues.length === 0) {
+                 appState.projectData.refinedIssues = [
+                    "Students often miss out on after-school opportunities due to a lack of safe and reliable transportation, limiting their personal and academic growth.",
+                    "Teenagers in our community face long wait times for mental health support, leading to increased stress and anxiety without timely intervention.",
+                    "Our school cafeteria generates significant food waste daily, contributing to environmental strain and missing an opportunity to address local food insecurity.",
+                    "Important local government meetings are poorly attended because the information is complex and not easily accessible, leading to a lack of community engagement in civic decisions.",
+                    "Non-native English speakers in our town have difficulty navigating essential services like healthcare and housing due to language barriers, creating inequity and hardship."
+                ];
+            }
+
+            const problemListContainer = document.getElementById('problem-list');
+            problemListContainer.innerHTML = '';
+            appState.projectData.refinedIssues.forEach(issue => {
+                const div = document.createElement('div');
+                div.className = 'p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition';
+                if (issue === appState.projectData.selectedIssue) {
+                    div.classList.add('bg-blue-100', 'border-blue-500', 'ring-2', 'ring-blue-500');
+                }
+                div.textContent = issue;
+                div.onclick = () => {
+                    appState.projectData.selectedIssue = issue;
+                    renderSelectProblem();
+                };
+                problemListContainer.appendChild(div);
+            });
+        }
+        
+        async function renderEmpathizeStep() {
+            const empathizeData = appState.projectData.empathize;
+
+            if (empathizeData.currentInterviewTarget) {
+                renderEmpathizeInterview();
+                return;
+            }
+
+            if (empathizeData.personas.length > 0 && empathizeData.completedInterviews.length === empathizeData.personas.length) {
+                renderEmpathizeSummary();
+                return;
+            }
+
+            mainContent.innerHTML = `
+                <h2 class="text-2xl font-bold mb-2 text-blue-800">Step 4: Empathize</h2>
+                <p class="mb-6 text-gray-700">To understand the problem, you need to talk to people affected by it. We'll use AI to simulate interviews with different personas. Select a persona to begin your first interview.</p>
+                <div id="persona-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="flex items-center justify-center h-32 col-span-full">
+                        <div class="loader"></div>
+                        <p class="ml-4 text-gray-600">AI is generating personas for you...</p>
+                    </div>
+                </div>
+            `;
+            
+            if (empathizeData.personas.length === 0) {
+                const prompt = `For the community problem: '${appState.projectData.selectedIssue}', generate 3 distinct user personas that would be affected by this problem. For each persona, provide a name, a brief role/description (e.g., 'a busy high school student', 'a concerned parent', 'a local business owner'), and a key concern or perspective related to the problem. Return this as a JSON array of objects, where each object has 'name', 'description', and 'perspective' keys. IMPORTANT: Your entire response must be ONLY the JSON array.`;
+                try {
+                    const personaText = await callGemini(prompt);
+                    const parsedPersonas = safeParseJsonArray(personaText);
+                    if (parsedPersonas && Array.isArray(parsedPersonas)) {
+                        empathizeData.personas = parsedPersonas;
+                    } else {
+                        throw new Error("Failed to parse personas.");
+                    }
+                } catch (error) {
+                    console.error("Persona generation error:", error);
+                    empathizeData.personas = [{name: "Error", description: "Could not generate personas.", perspective: "Please go back and try again."}];
+                }
+            }
+            
+            const personaContainer = document.getElementById('persona-container');
+            personaContainer.innerHTML = '';
+            empathizeData.personas.forEach(persona => {
+                const isInterviewed = empathizeData.completedInterviews.includes(persona.name);
+                const card = document.createElement('div');
+                card.className = `persona-card bg-white p-6 rounded-lg border-2 ${isInterviewed ? 'border-green-400 interviewed' : 'border-gray-200 cursor-pointer'}`;
+                card.innerHTML = `
+                    <div class="flex items-center mb-3">
+                        <span class="flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-full text-xl font-bold">${persona.name.charAt(0)}</span>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-bold text-gray-900">${persona.name}</h3>
+                            <p class="text-sm text-gray-500">${persona.description}</p>
+                        </div>
+                    </div>
+                    <p class="text-gray-700 italic">"${persona.perspective}"</p>
+                    ${isInterviewed ? '<p class="text-green-600 font-bold mt-4 text-center"><i class="fas fa-check-circle mr-2"></i>Interview Complete</p>' : ''}
+                `;
+                if (!isInterviewed) {
+                    card.onclick = () => {
+                        empathizeData.currentInterviewTarget = persona;
+                        if (!empathizeData.interviews[persona.name]) {
+                            empathizeData.interviews[persona.name] = [];
+                        }
+                        renderEmpathizeInterview();
+                    };
+                }
+                personaContainer.appendChild(card);
+            });
+        }
+
+        function renderEmpathizeInterview() {
+            const persona = appState.projectData.empathize.currentInterviewTarget;
+            const chatHistory = appState.projectData.empathize.interviews[persona.name];
+
+            mainContent.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-2 text-blue-800">Interviewing: ${persona.name}</h2>
+                        <p class="mb-4 text-gray-700">Ask questions to understand their perspective on the problem: <strong>${appState.projectData.selectedIssue}</strong></p>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h3 class="font-semibold text-blue-800">Persona Details</h3>
+                            <p><strong>Role:</strong> ${persona.description}</p>
+                            <p><strong>Key Concern:</strong> ${persona.perspective}</p>
+                        </div>
+                        <button id="finish-interview-btn" class="mt-6 w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">Finish Interview with ${persona.name}</button>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded-lg flex flex-col h-[500px]">
+                        <h3 class="font-semibold mb-3 text-center text-gray-800">Interview Chat</h3>
+                        <div id="chat-window" class="flex-grow bg-white rounded-md p-3 overflow-y-auto mb-3 flex flex-col gap-3">
+                            <!-- Chat messages -->
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <input type="text" id="chat-input" class="flex-grow p-2 border border-gray-300 rounded-lg" placeholder="Ask a question...">
+                            <button id="send-chat-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const chatWindow = document.getElementById('chat-window');
+            const chatInput = document.getElementById('chat-input');
+            const sendChatBtn = document.getElementById('send-chat-btn');
+
+            function renderChat() {
+                chatWindow.innerHTML = '';
+                chatHistory.forEach(msg => {
+                    const bubble = document.createElement('div');
+                    bubble.className = `p-3 rounded-lg max-w-[80%] chat-bubble-${msg.role}`;
+                    if (msg.role === 'user') {
+                        bubble.textContent = msg.text;
+                    } else {
+                        bubble.innerHTML = formatAIResponseToHTML(msg.text);
+                    }
+                    chatWindow.appendChild(bubble);
+                });
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+
+            async function handleSendChat() {
+                const userInput = chatInput.value.trim();
+                if (!userInput) return;
+
+                chatHistory.push({ role: 'user', text: userInput });
+                chatInput.value = '';
+                renderChat();
+
+                const loadingBubble = document.createElement('div');
+                loadingBubble.className = 'p-3 rounded-lg max-w-[80%] chat-bubble-ai flex items-center';
+                loadingBubble.innerHTML = `<div class="loader"></div>`;
+                chatWindow.appendChild(loadingBubble);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                const prompt = `You are role-playing as a specific persona for a student interview. Your persona is: Name: ${persona.name}, Description: ${persona.description}, Perspective: "${persona.perspective}". The student is trying to understand your needs related to the problem: "${appState.projectData.selectedIssue}". The student's question is: "${userInput}". Respond naturally and from your persona's point of view. Keep your answers concise and focused. Format your response for clarity using Markdown-style lists (e.g., '* First point') where it improves readability.`;
+                
+                try {
+                    const aiResponse = await callGemini(prompt);
+                    chatHistory.push({ role: 'ai', text: aiResponse });
+                } catch (error) {
+                    chatHistory.push({ role: 'ai', text: "Sorry, an error occurred." });
+                } finally {
+                    renderChat();
+                }
+            }
+
+            sendChatBtn.addEventListener('click', handleSendChat);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSendChat();
+            });
+
+            document.getElementById('finish-interview-btn').addEventListener('click', async () => {
+                const empathizeData = appState.projectData.empathize;
+                empathizeData.completedInterviews.push(persona.name);
+                empathizeData.currentInterviewTarget = null;
+                
+                if (empathizeData.completedInterviews.length === empathizeData.personas.length) {
+                    renderEmpathizeSummary(true); // Show loading state
+
+                    const transcripts = Object.entries(empathizeData.interviews).map(([name, chat]) => {
+                        return `Interview with ${name}:\n${chat.map(m => `${m.role}: ${m.text}`).join('\n')}`;
+                    }).join('\n\n');
+                    const synthesisPrompt = `You have the transcripts of three interviews about the problem: '${appState.projectData.selectedIssue}'. Here are the interviews:\n\n${transcripts}\n\nSynthesize the key takeaways, pain points, and needs from these interviews into a bulleted list using Markdown syntax (e.g., '* Key finding...'). The goal is to summarize the core findings from the empathy research.`;
+                    
+                    const synthesizedNotes = await callGemini(synthesisPrompt);
+                    empathizeData.notes = synthesizedNotes;
+                    
+                    renderEmpathizeSummary(false);
+                    updateNavButtons();
+                } else {
+                    renderEmpathizeStep();
+                }
+            });
+
+            renderChat();
+        }
+
+        function renderEmpathizeSummary(isLoading = false) {
+             mainContent.innerHTML = `
+                <h2 class="text-2xl font-bold mb-2 text-blue-800">Step 4: Empathize - Key Takeaways</h2>
+                <p class="mb-6 text-gray-700">Great work! You've interviewed all the personas. Based on those conversations, the AI has generated a summary of key takeaways. Review, edit, and add your own insights to these notes.</p>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold mb-2 text-gray-800">Your Notes & Key Takeaways</h3>
+                    <textarea id="empathize-notes" class="w-full h-96 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">${appState.projectData.empathize.notes}</textarea>
+                </div>
+            `;
+            const notesTextarea = document.getElementById('empathize-notes');
+            if (isLoading) {
+                notesTextarea.value = "Synthesizing takeaways from your interviews...";
+                notesTextarea.disabled = true;
+            } else {
+                notesTextarea.disabled = false;
+                notesTextarea.addEventListener('input', e => {
+                    appState.projectData.empathize.notes = e.target.value;
+                });
+            }
+        }
+
+        function renderDesignThinkingStep(stepKey, title, description, prompts) {
+            const stepData = appState.projectData[stepKey];
+            mainContent.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h2 class="text-2xl font-bold mb-2 text-blue-800">Step ${appState.currentStep + 1}: ${title}</h2>
+                        <p class="mb-6 text-gray-700">${description.replace('[issue]', `<strong>${appState.projectData.selectedIssue}</strong>`)}</p>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-semibold mb-2 text-gray-800">Your Notes & Key Takeaways</h3>
+                            <textarea id="${stepKey}-notes" class="w-full h-48 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Summarize your findings and ideas here...">${stepData.notes}</textarea>
+                        </div>
+                    </div>
+                    <div class="bg-gray-100 p-4 rounded-lg flex flex-col h-[500px]">
+                        <h3 class="font-semibold mb-3 text-center text-gray-800">AI Collaboration Chat</h3>
+                        <div id="chat-window" class="flex-grow bg-white rounded-md p-3 overflow-y-auto mb-3 flex flex-col gap-3"></div>
+                        <div class="mb-2">
+                            <p class="text-xs text-gray-600 mb-1">Try a prompt stem:</p>
+                            <div id="prompt-stems" class="flex flex-wrap gap-2">
+                                ${prompts.map(p => `<button type="button" class="prompt-stem-btn bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md hover:bg-blue-200">${p}</button>`).join('')}
+                            </div>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <input type="text" id="chat-input" class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Chat with your AI partner...">
+                            <button id="send-chat-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById(`${stepKey}-notes`).addEventListener('input', e => {
+                stepData.notes = e.target.value;
+            });
+
+            const chatWindow = document.getElementById('chat-window');
+            const chatInput = document.getElementById('chat-input');
+            const sendChatBtn = document.getElementById('send-chat-btn');
+
+            function renderChat() {
+                chatWindow.innerHTML = '';
+                stepData.chat.forEach(msg => {
+                    const bubble = document.createElement('div');
+                    bubble.className = `p-3 rounded-lg max-w-[80%] chat-bubble-${msg.role}`;
+                     if (msg.role === 'user') {
+                        bubble.textContent = msg.text;
+                    } else {
+                        bubble.innerHTML = formatAIResponseToHTML(msg.text);
+                    }
+                    chatWindow.appendChild(bubble);
+                });
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }
+
+            async function handleSendChat() {
+                const userInput = chatInput.value.trim();
+                if (!userInput) return;
+
+                stepData.chat.push({ role: 'user', text: userInput });
+                chatInput.value = '';
+                renderChat();
+
+                const loadingBubble = document.createElement('div');
+                loadingBubble.className = 'p-3 rounded-lg max-w-[80%] chat-bubble-ai flex items-center';
+                loadingBubble.innerHTML = `<div class="loader"></div>`;
+                chatWindow.appendChild(loadingBubble);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                const prompt = `The user is in the "${title}" phase of the design thinking process for their project: "${appState.projectData.selectedIssue}". Their message is: "${userInput}". Provide a helpful, concise, and collaborative response to assist them. Format your response for clarity using Markdown-style lists (e.g., '* First point') and bolding (e.g., '**Key Term**') where it improves readability.`;
+                
+                try {
+                    const aiResponse = await callGemini(prompt);
+                    stepData.chat.push({ role: 'ai', text: aiResponse });
+                } catch (error) {
+                    stepData.chat.push({ role: 'ai', text: "Sorry, an error occurred." });
+                } finally {
+                    renderChat();
+                }
+            }
+            
+            sendChatBtn.addEventListener('click', handleSendChat);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSendChat();
+            });
+
+            document.querySelectorAll('.prompt-stem-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    chatInput.value = btn.textContent;
+                    chatInput.focus();
+                });
+            });
+
+            renderChat();
+        }
+
+        function renderFinish() {
+             mainContent.innerHTML = `
+                <div class="text-center py-12">
+                    <h2 class="text-3xl font-bold mb-4 text-green-600">Congratulations!</h2>
+                    <p class="text-xl text-gray-700 mb-8">You've completed all the steps of the design thinking guide.</p>
+                    <p class="mb-8">You can now generate a summary document of your project. This document can be copied, printed, or saved as a PDF to help with your official Solve-A-Thon submission.</p>
+                    <button id="generate-doc-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">
+                        <i class="fas fa-file-alt mr-2"></i> Generate Project Document
+                    </button>
+                </div>
+            `;
+            document.getElementById('generate-doc-btn').addEventListener('click', showFinalDocument);
+        }
+
+        function showFinalDocument() {
+            const contentContainer = document.getElementById('final-doc-content');
+            const data = appState.projectData;
+            
+            const formatChatForFinalDoc = (chatArray) => {
+                if (!chatArray || chatArray.length === 0) return '<p><em>No chat history for this step.</em></p>';
+                return chatArray.map(msg => {
+                    const content = msg.role === 'user' ? msg.text : formatAIResponseToHTML(msg.text);
+                    return `<p><strong>${msg.role === 'user' ? 'Team' : 'AI Assistant'}:</strong></p><div>${content}</div>`;
+                }).join('');
+            };
+            
+            const formatInterviews = (interviews) => {
+                 if (!interviews || Object.keys(interviews).length === 0) return 'No interviews conducted.';
+                 return Object.entries(interviews).map(([name, chat]) => {
+                     return `<h4>Interview with ${name}</h4><div class="chat-log">${formatChatForFinalDoc(chat)}</div>`;
+                 }).join('');
+            };
+
+            contentContainer.innerHTML = `
+                <style>
+                    #final-doc-content h3 { font-size: 1.25rem; font-weight: 700; color: #1e40af; border-bottom: 2px solid #93c5fd; padding-bottom: 0.5rem; margin-top: 1.5rem; margin-bottom: 1rem; }
+                    #final-doc-content h4 { font-size: 1.1rem; font-weight: 600; color: #1d4ed8; margin-top: 1rem; margin-bottom: 0.5rem; }
+                    #final-doc-content p { margin-bottom: 0.75rem; line-height: 1.6; }
+                    #final-doc-content .chat-log { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1rem; margin-top: 1rem; }
+                    #final-doc-content .chat-log ul { list-style-type: disc; padding-left: 20px; }
+                </style>
+                <h3>Project Title (Selected Problem)</h3>
+                <p>${data.selectedIssue || 'Not selected.'}</p>
+
+                <h3>Initial Brainstorming (Community Issues)</h3>
+                <p>${data.communityIssues.replace(/\n/g, '<br>') || 'No issues brainstormed.'}</p>
+
+                <h3>Step 1: Empathize</h3>
+                <h4>Key Takeaways & Notes:</h4>
+                <div>${formatAIResponseToHTML(data.empathize.notes) || 'No notes.'}</div>
+                <h4>Interview Transcripts:</h4>
+                ${formatInterviews(data.empathize.interviews)}
+
+                <h3>Step 2: Define</h3>
+                <h4>Team Notes:</h4>
+                <p>${data.define.notes.replace(/\n/g, '<br>') || 'No notes.'}</p>
+                <h4>AI Collaboration Chat:</h4>
+                <div class="chat-log">${formatChatForFinalDoc(data.define.chat)}</div>
+
+                <h3>Step 3: Ideate</h3>
+                <h4>Team Notes:</h4>
+                <p>${data.ideate.notes.replace(/\n/g, '<br>') || 'No notes.'}</p>
+                <h4>AI Collaboration Chat:</h4>
+                <div class="chat-log">${formatChatForFinalDoc(data.ideate.chat)}</div>
+
+                <h3>Step 4: Prototype</h3>
+                <h4>Team Notes:</h4>
+                <p>${data.prototype.notes.replace(/\n/g, '<br>') || 'No notes.'}</p>
+                <h4>AI Collaboration Chat:</h4>
+                <div class="chat-log">${formatChatForFinalDoc(data.prototype.chat)}</div>
+
+                <h3>Step 5: Test & Iterate</h3>
+                <h4>Team Notes:</h4>
+                <p>${data.test.notes.replace(/\n/g, '<br>') || 'No notes.'}</p>
+                <h4>AI Collaboration Chat:</h4>
+                <div class="chat-log">${formatChatForFinalDoc(data.test.chat)}</div>
+            `;
+            finalDocModal.classList.remove('hidden');
+            finalDocModal.classList.add('flex');
+        }
+
+        // --- EVENT LISTENERS & LOGIC ---
+
+        function updateNavButtons() {
+            prevBtn.disabled = appState.currentStep === 0;
+            if (appState.currentStep === steps.length - 1) {
+                nextBtn.style.display = 'none';
+            } else {
+                nextBtn.style.display = 'inline-flex';
+                nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right ml-2"></i>';
+            }
+            
+            nextBtn.disabled = false;
+            if (appState.currentStep === 0 && !appState.projectData.agreedToTerms) {
+                nextBtn.disabled = true;
+            }
+            if (appState.currentStep === 3) {
+                const empathizeData = appState.projectData.empathize;
+                if (empathizeData.personas.length === 0 || empathizeData.completedInterviews.length < empathizeData.personas.length) {
+                    nextBtn.disabled = true;
+                }
+            }
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (appState.currentStep > 0) {
+                if (appState.currentStep === 3) {
+                    appState.projectData.empathize.currentInterviewTarget = null;
+                }
+                appState.currentStep--;
+                render();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (appState.currentStep < steps.length - 1) {
+                // Validation
+                if (appState.currentStep === 0 && !appState.projectData.agreedToTerms) {
+                    alert("Please agree to the responsible AI use statement before proceeding.");
+                    return;
+                }
+                if (appState.currentStep === 1 && !appState.projectData.communityIssues) {
+                    alert("Please brainstorm some community issues before proceeding.");
+                    return;
+                }
+                if (appState.currentStep === 2 && !appState.projectData.selectedIssue) {
+                    alert("Please select one problem to focus on.");
+                    return;
+                }
+                if (appState.currentStep === 3 && appState.projectData.empathize.completedInterviews.length < appState.projectData.empathize.personas.length) {
+                    alert("Please complete all persona interviews before proceeding.");
+                    return;
+                }
+                appState.currentStep++;
+                render();
+            }
+        });
+
+        document.getElementById('close-modal-btn').addEventListener('click', () => {
+            finalDocModal.classList.add('hidden');
+            finalDocModal.classList.remove('flex');
+        });
+
+        document.getElementById('copy-btn').addEventListener('click', () => {
+            const content = document.getElementById('final-doc-content').innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = content;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert('Project plan copied to clipboard!');
+            } catch (err) {
+                alert('Failed to copy text.');
+            }
+            document.body.removeChild(textarea);
+        });
+
+        document.getElementById('print-btn').addEventListener('click', () => {
+            const content = document.getElementById('final-doc-content').innerHTML;
+            const modal = document.getElementById('final-doc-modal');
+            modal.style.display = 'none';
+            
+            const printWindow = window.open('', '', 'height=800,width=800');
+            printWindow.document.write('<html><head><title>NC AI Solve-A-Thon Project Plan</title>');
+            printWindow.document.write('<style>body{font-family:sans-serif;line-height:1.5}h3{font-size:1.25rem;font-weight:700;color:#1e40af;border-bottom:2px solid #93c5fd;padding-bottom:0.5rem;margin-top:1.5rem;margin-bottom:1rem}h4{font-size:1.1rem;font-weight:600;color:#1d4ed8;margin-top:1rem;margin-bottom:0.5rem}p{margin-bottom:0.75rem}.chat-log{background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:0.5rem;padding:1rem;margin-top:1rem} ul{list-style-type:disc; padding-left:20px;}</style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(content);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+            
+            modal.style.display = 'flex';
+        });
+
+
+        // --- API CALL ---
+        async function callGemini(prompt) {
+            console.log("Calling Gemini with prompt:", prompt);
+            
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // This will be handled by the environment when hosted
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    console.error("Unexpected API response structure:", result);
+                    return "Sorry, I couldn't generate a response. The API returned an unexpected format.";
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                return `An error occurred while contacting the AI assistant: ${error.message}. Please check the console for details.`;
+            }
+        }
+
+        // Initial render
+        render();
+    </script>
+
+</body>
+</html>
